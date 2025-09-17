@@ -3,18 +3,19 @@ from environs import Env
 import asyncio
 import logging
 
-from handler import admin_router, user_router
+from handler import admin_router,user_router
+import os
 
-
+os.makedirs("images",exist_ok=True)
 
 dp = Dispatcher()
 
-env  = Env()
-env.read_env()
+
 
 
 async def main():
-    TOKEN = env.str("BOT_TOKEN")
+   
+    TOKEN = os.getenv("TOKEN")
     bot = Bot(TOKEN)
     dp.include_router(admin_router)
     dp.include_router(user_router)

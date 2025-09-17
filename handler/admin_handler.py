@@ -4,6 +4,11 @@ from aiogram import Router,F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup,State
 
+from database import delete_food, get_users, update_food_data
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+
+
 from database import (is_admin,is_new_foods,
                       is_progress_foods,update_order,
                       add_food,get_foods)
@@ -190,6 +195,97 @@ async def  update_food_start(message:Message):
     for i in get_foods():
         await message.answer(text=str(i[1]),reply_markup=update_food(i[0]))
 
+
+# 🗑 Taom o‘chirish
+@admin_router.message(F.text == "🗑 Delete")
+async def delete_foods(message: Message):
+    foods = get_foods()
+    if foods:
+        await message.answer("O‘chirmoqchi bo‘lgan taomni tanlang:")
+        for food in foods:
+            await message.answer(
+                text=f"🍽 {food[1]} - {food[3]} so‘m",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(
+                            text="❌ O‘chirish",
+                            callback_data=f"delete_food_{food[0]}"
+                        )]
+                    ]
+                )
+            )
+    else:
+        await message.answer("Hozircha taomlar mavjud emas.")
+
+
+@admin_router.callback_query(F.data.startswith("delete_food_"))
+async def confirm_delete(call: CallbackQuery):
+    food_id = int(call.data.split("_")[-1])
+    delete_food(food_id)
+    await call.message.edit_text("✅ Taom o‘chirildi.")
+
+
+# 📋 Taomlar ro‘yxatini ko‘rish
+@admin_router.message(F.text == "📋 List")
+async def list_foods(message: Message):
+    foods = get_foods()
+    if foods:
+        text = "🍱 Taomlar ro‘yxati:\n\n"
+        for f in foods:
+            text += f"ID: {f[0]} | 🍽 {f[1]} | 💵 {f[3]} so‘m | 📦 {f[4]} dona\n"
+        await message.answer(text)
+    else:
+        await message.answer("Hozircha taomlar mavjud emas.")
+
+
+# ✏️ Taom o‘zgartirish
+class UpdateFood(StatesGroup):
+    food_id = State()
+    price = State()
+    quantity = State()
+
+
+@admin_router.callback_query(F.data.startswith("update_food_"))
+async def start_update_food(call: CallbackQuery, state: FSMContext):
+    food_id = int(call.data.split("_")[-1])
+    await state.set_state(UpdateFood.food_id)
+    await state.update_data(food_id=food_id)
+    await call.message.answer("Yangi narxni kiriting:")
+
+
+@admin_router.message(UpdateFood.food_id)
+async def set_new_price(message: Message, state: FSMContext):
+    if message.text.isdigit():
+        await state.update_data(price=int(message.text))
+        await state.set_state(UpdateFood.price)
+        await message.answer("Yangi miqdorni kiriting:")
+    else:
+        await message.answer("Narx raqam bo‘lishi kerak.")
+
+
+@admin_router.message(UpdateFood.price)
+async def set_new_quantity(message: Message, state: FSMContext):
+    if message.text.isdigit():
+        await state.update_data(quantity=int(message.text))
+        data = await state.get_data()
+        update_food_data(data["food_id"], data["price"], data["quantity"])
+        await state.clear()
+        await message.answer("✅ Taom muvaffaqiyatli yangilandi.")
+    else:
+        await message.answer("Miqdor raqam bo‘lishi kerak.")
+
+
+# 👥 Foydalanuvchilarni ko‘rish
+@admin_router.message(F.text == "👥 Users")
+async def list_users(message: Message):
+    users = get_users()
+    if users:
+        text = "👥 Foydalanuvchilar ro‘yxati:\n\n"
+        for u in users:
+            text += f"ID: {u[0]} | 👤 {u[1]} | 📱 {u[2]}\n"
+        await message.answer(text)
+    else:
+        await message.answer("Hozircha foydalanuvchilar mavjud emas.")
 
 
 
