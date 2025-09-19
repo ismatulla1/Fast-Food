@@ -31,6 +31,8 @@ def save_user(chat_id, fullname, phone, lat, long, username=None):
         conn.close()
 
 
+# === FOODS ===
+
 def get_foods():
     conn = get_connect()
     dbc = conn.cursor()
@@ -49,6 +51,57 @@ def get_food(id):
     return food
 
 
+def add_food(data: dict):
+    conn = get_connect()
+    dbc = conn.cursor()
+    try:
+        dbc.execute("""
+            INSERT INTO food (name, description, image, price, quantity)
+            VALUES (?, ?, ?, ?, ?)
+        """, (data["name"], data["desc"], data["image"], data["price"], data["quantity"]))
+        conn.commit()
+        return True
+    except Exception as e:
+        print("Xato:", e)
+        return None
+    finally:
+        conn.close()
+
+
+def delete_food(food_id: int):
+    conn = get_connect()
+    dbc = conn.cursor()
+    try:
+        dbc.execute("DELETE FROM food WHERE id = ?", (food_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        print("Xato:", e)
+        return False
+    finally:
+        conn.close()
+
+
+def update_food(food_id: int, data: dict):
+    conn = get_connect()
+    dbc = conn.cursor()
+    try:
+        dbc.execute("""
+            UPDATE food
+            SET name = ?, description = ?, image = ?, price = ?, quantity = ?
+            WHERE id = ?
+        """, (data["name"], data["desc"], data["image"], data["price"], data["quantity"], food_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print("Xato:", e)
+        return False
+    finally:
+        conn.close()
+
+
+# === ORDERS ===
+
 def save_order(food_id, user_id, quantity, price):
     conn = get_connect()
     dbc = conn.cursor()
@@ -60,12 +113,13 @@ def save_order(food_id, user_id, quantity, price):
     conn.close()
 
 
-def is_admin(chat_id):
+def update_order(order_id):
     conn = get_connect()
     dbc = conn.cursor()
     try:
-        dbc.execute("SELECT * FROM users WHERE chat_id = ?", (chat_id,))
-        return dbc.fetchone()
+        dbc.execute("UPDATE orders SET status = 'cancel' WHERE id = ?", (order_id,))
+        conn.commit()
+        return True
     except Exception as e:
         print("Xato:", e)
         return None
@@ -125,13 +179,14 @@ def is_progress_foods():
         conn.close()
 
 
-def update_order(order_id):
+# === ADMIN & USERS ===
+
+def is_admin(chat_id):
     conn = get_connect()
     dbc = conn.cursor()
     try:
-        dbc.execute("UPDATE orders SET status = 'cancel' WHERE id = ?", (order_id,))
-        conn.commit()
-        return True
+        dbc.execute("SELECT * FROM users WHERE chat_id = ? AND role='admin'", (chat_id,))
+        return dbc.fetchone()
     except Exception as e:
         print("Xato:", e)
         return None
@@ -139,18 +194,10 @@ def update_order(order_id):
         conn.close()
 
 
-def add_food(data: dict):
+def get_users():
     conn = get_connect()
     dbc = conn.cursor()
-    try:
-        dbc.execute("""
-            INSERT INTO food (name, description, image, price, quantity)
-            VALUES (?, ?, ?, ?, ?)
-        """, (data["name"], data["desc"], data["image"], data["price"], data["quantity"]))
-        conn.commit()
-        return True
-    except Exception as e:
-        print("Xato:", e)
-        return None
-    finally:
-        conn.close()
+    dbc.execute("SELECT id, fullname, username, phone FROM users")
+    users = dbc.fetchall()
+    conn.close()
+    return users
